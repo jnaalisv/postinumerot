@@ -1,20 +1,4 @@
-
-var secret      = require('./secret.js');
-var mysql      = require('mysql');
-var connection = mysql.createConnection({
-    host     : secret.host,
-    user     : secret.user,
-    password : secret.password,
-    database : secret.database
-});
-
-connection.connect();
-
-connection.query('SELECT 1 + 1 AS solution', function(err, rows, fields) {
-    if (err) throw err;
-
-    console.log('Connected to database');
-});
+var fs = require('fs');
 
 var http = require('http');
 var options = {
@@ -33,15 +17,15 @@ http.get(options, function(res) {
             body += chunk;
         }).on('end', function() {
             var postalCodeData = JSON.parse(body);
-            postalCodeData.features.forEach(function(element) {
-                var postalCodeToArea = element.properties;
 
-                connection.query('INSERT INTO PostalCode SET ?', {postalCode: postalCodeToArea.posti_alue, areaName: postalCodeToArea.nimi}, function(err, result) {
-                    if (err) throw err;
+            var stream = fs.createWriteStream("postalCodes.sql");
+            stream.once('open', function(fd) {
+                postalCodeData.features.forEach(function(element) {
+                    var postalCodeToArea = element.properties;
+                    stream.write("INSERT INTO PostalCode(postalCode, areaName) VALUES (\'"+postalCodeToArea.posti_alue+"\',\'"+postalCodeToArea.nimi+"\');\n");
                 });
+                stream.end();
             });
-
-            connection.end();
 
             console.log('No more data in response.')
         })
