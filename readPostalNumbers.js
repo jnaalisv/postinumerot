@@ -1,5 +1,22 @@
-var http = require('http');
 
+var secret      = require('./secret.js');
+var mysql      = require('mysql');
+var connection = mysql.createConnection({
+    host     : secret.host,
+    user     : secret.user,
+    password : secret.password,
+    database : secret.database
+});
+
+connection.connect();
+
+connection.query('SELECT 1 + 1 AS solution', function(err, rows, fields) {
+    if (err) throw err;
+
+    console.log('Connected to database');
+});
+
+var http = require('http');
 var options = {
     hostname: 'geo.stat.fi',
     path: '/geoserver/wfs?service=WFS&version=1.0.0&request=GetFeature&typeName=postialue:pno&outputFormat=json',
@@ -18,8 +35,13 @@ http.get(options, function(res) {
             var postalCodeData = JSON.parse(body);
             postalCodeData.features.forEach(function(element) {
                 var postalCodeToArea = element.properties;
-                console.log(postalCodeToArea.nimi + ' ' + postalCodeToArea.posti_alue);
+
+                connection.query('INSERT INTO PostalCode SET ?', {postalCode: postalCodeToArea.posti_alue, areaName: postalCodeToArea.nimi}, function(err, result) {
+                    if (err) throw err;
+                });
             });
+
+            connection.end();
 
             console.log('No more data in response.')
         })
@@ -27,3 +49,4 @@ http.get(options, function(res) {
             console.log('problem with request: ' + e.message);
         });
 });
+
